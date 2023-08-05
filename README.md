@@ -5,7 +5,7 @@
 ![Language](https://img.shields.io/github/languages/top/Ggre55/Capmonster-Checker.svg?style=for-the-badge&labelColor=black&color=f429ff&logo=python)
 
 
-  <p align="center">
+<p align="center">
     <br />
     <br />
     <a href="https://t.me/Drwoop">🌌 Telegram</a>
@@ -32,6 +32,7 @@
 > Checker:
 * Requires: `Python 3.10+`, `colorama`, `httpx`, `json`
 * Start: `main.py`
+* to use proxies just create `proxies.txt` file in same directory and put in your proxies
 
 ---------------------------------------
 
@@ -57,12 +58,6 @@
 - I am not responsible for anything that may happen, such as, API Blocking, Account Termination, etc.
 - This **may** slow down your wifi and/or host computer
 - This was a quick project that was made for fun, so if you want to see further updates, star the repo & create an "issue" [here](https://github.com/Ggre55/Capmonster-Checker/issues)
-
----------------------------------------
-
-### ❗ CREDIT
-idea from ! Otex ~ discord.gg/otex
-pulled from ! [Imvast](https://github.com/imvast/Capmonster-Checker) 
 
 ---------------------------------------
 ### 📜 ChangeLog
