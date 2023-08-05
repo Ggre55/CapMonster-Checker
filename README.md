@@ -45,13 +45,6 @@
 * Remove Invalid Proxies
 * Threading or Asynchronous Requests
 
-
----------------------------------------
-
-### 🚀 Milestones
-* 10 Stars - Better Error Handling [`DONE`]
-* suggest more things for me to do cuz idk 
-
 ---------------------------------------
 
 ### ❗ Disclaimers
