@@ -68,9 +68,14 @@
   Instead of randomly selecting a proxy for each key check, we'll choose a single proxy and use it for multiple key checks before changing to another one. This will reduce the overhead of changing proxies frequently.
 > Threading or Asynchronous Requests:
   Using Python's `concurrent.futures` module to check multiple keys simultaneously with threading.
-> Remove Invalid Proxies:
-  We implement a function to check the validity of proxies before using them for HTTP requests. If a proxy is found to be invalid, it will be removed from the proxy pool.
 > Logging:
   We'll add proper logging to log the results, errors, and status of key checks and other operations.
+
+! v1.2 (26/8/2023)
+> Logging:
+  improvements and fixes.
+> Better error handling ❤️
+> Fixed issues and bugs
+> Fixed proxy issues and proxy checker
 ```
 ---------------------------------------
