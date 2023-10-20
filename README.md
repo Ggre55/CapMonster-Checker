@@ -10,7 +10,7 @@
     <br />
     <a href="https://t.me/Drwoop">🌌 Telegram</a>
     ·
-    <a href="https://github.com/imvast/Capmonster-Checker#-changelog">📜 ChangeLog</a>
+    <a href="https://github.com/Ggre55/Capmonster-Checker#-changelog">📜 ChangeLog</a>
     ·
     <a href="https://github.com/Ggre55/Capmonster-Checker/issues">⚠️ Report Bug</a>
     ·
