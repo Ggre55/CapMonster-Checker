@@ -8,7 +8,7 @@
 <p align="center">
     <br />
     <br />
-    <a href="https://t.me/Drwoop">🌌 Telegram</a>
+    <a href="https://t.me/Drwoop_Globe">🌌 Telegram</a>
     ·
     <a href="https://github.com/Ggre55/Capmonster-Checker#-changelog">📜 ChangeLog</a>
     ·
